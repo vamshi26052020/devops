@@ -1,0 +1,42 @@
+*************************** Build Failed solving steps****************************************************
+
+you see build failure, don't send mail, check the cause for failure and interact with Dev team and clear the cache by using below steps.
+
+
+/development0/021/build/codebase/ATG/ATG11.1/ProjectInstall/
+
+/development0/021/build/codebase/MID_ATG/ATG11.1/ProjectInstall/
+
+/development0/021/build/codebase/GBL_ATG/ATG11.1/ProjectInstall/
+
+
+And try manual build after setting classpath and even then if build fails then its not our issue. 
+
+
+Sprintmobile(R8S) // 9QS build  always run main build first then run R8s/9QS build but if you think there is chance for duplicate jars showing up then
+ clean this location before starting build
+
+/development0/021/build/jenkins_workspace/jobs/<<release>>_R8S/workspace/source/modules/mobileWS/lib
+
+Then during  build new copy of code will be checked out to build location
+
+
+go to this path run below 2 commands
+
+[webadmin@dvmkc409 Build]$ pwd
+/development0/021/build/jenkins_workspace/jobs/MID18.6.4/workspace/sprint20_project/Build
+[webadmin@dvmkc409 Build]$
+
+
+ant clean-all
+ant cleanCache 
+ 
+then run manual build or jenkins build  we get result.
+
+
+******************In manual build run************************
+check the build/codebase/jenkins/MID18.11.2/*/*.ear
+once dwloader is updated with latest timestamp then all builds are done, currently running support-app.
+
+go to cd [webadmin@dvmkc409 dwloader]$ pwd
+/development0/021/build/codebase/stage/jenkins/MID18.11.2/dwloader 

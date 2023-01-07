@@ -1,0 +1,195 @@
+webadmin@tvmka138 [/tools/jboss/t8s/tvmka138/t8s-systemtest2-shop_app_8209/bin]
+$ cat admin.sh
+#!/bin/bash
+#### ===================================================================== ####
+##  Name: admin.sh                                                           ##
+##  Authors: Phillip Hagerman (phillip.hagerman@sprint.com)                  ##
+##  Date: February 2013                                                      ##
+#### ===================================================================== ####
+##  Copyright (c) 2011-2013 by Sprint Telecommunications Inc.                ##
+##  All rights reserved.                                                     ##
+#### ===================================================================== ####
+cd $(dirname ${0}); SCRIPTHOME=${PWD}
+umask 0002
+source ${SCRIPTHOME}/setenv.sh
+#### ===================================================================== ####
+##     Verify the owner of the instance is running the script                ##
+#### ===================================================================== ####
+# Get the owner of the directory
+OWNER=$(ls -ld ${SCRIPTHOME} | awk '{print $3}')
+ # Determine the id of the user running the script
+RUNNER=$( id | cut -f2 -d"(" | cut -f1 -d")" )
+
+if [[ ${RUNNER} != ${OWNER} ]]
+then
+        echo "Only the owner of this instance, JBoss actions is allowed."
+        echo "And ${OWNER} you are not."
+        exit 9999
+fi
+source ${SCRIPTHOME}/functions/admin.basics.sh
+#### ===================================================================== ####
+##     Evaluate arguments passed to the script                               ##
+#### ===================================================================== ####
+dbg "[${DATESTAMP}] - ${USERNAME} (${USERID})"
+dbg "$0" "$@"
+while [[ ${#} > 0 ]]
+do
+        # Make whatever arguments were passed lowercase
+        ARGUMENT=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
+
+        # process the argument for actionable keywords
+        # fail if multiple supplied
+        case ${ARGUMENT} in
+                # Basic actions
+                activate)
+                        ((A++)); FUNCTION_CALL="activate";;
+                stop)
+                        ((A++)); FUNCTION_CALL="stop";;
+                start)
+                        ((A++)); FUNCTION_CALL="start";;
+                restart)
+                        ((A++)); FUNCTION_CALL="restart";;
+                status)
+                        ((A++)); FUNCTION_CALL="status";;
+                version)
+                        ((A++)); FUNCTION_CALL="version";;
+                terminate)
+                        ((A++)); FUNCTION_CALL="terminate"
+                        shift; PID=${1};;
+
+                # Intermediate actions
+                threaddump)
+                        ((A++)); FUNCTION_CALL="threaddump";;
+                heapdump)
+                        ((A++)); FUNCTION_CALL="heapdump";;
+                deploy)
+                        ((A++)); FUNCTION_CALL="deploy"
+                        shift; ARTIFACT_PATH=${1};;
+                undeploy)
+                        ((A++)); FUNCTION_CALL="undeploy"
+                        shift; ARTIFACT_NAME=${1};;
+                redeploy)
+                        ((A++)); FUNCTION_CALL="redeploy"
+                        shift; ARTIFACT_PATH=${1};;
+                addlog)
+                        ((A++)); FUNCTION_CALL="addlog"
+                        shift; APP_LOG_NAME=${1};;
+                deletelog)
+                        ((A++)); FUNCTION_CALL="deletelog"
+                        shift; LOG_FILE=${1};;
+                adduser)
+                        ((A++)); FUNCTION_CALL="adduser"
+                        shift; USERNAME=${1}
+                        shift; PASSWORD=${1};;
+                deletebackup)
+                        ((A++)); FUNCTION_CALL="deletebackup"
+                        shift; BACKUP=${1};;
+
+
+                # Advanced Actions
+                update)
+                        # An update type is needed
+                        ((A++)); FUNCTION_CALL="update"
+                        FUNCTION_FILE="update";;
+                # These are all sub commands of the update
+                # pull the next value as SRC_FILE
+                        xml)
+                                FUNCTION_CALL="update-xml"
+                                shift; SRC_FILE=${1};;
+                        env)
+                                FUNCTION_CALL="update-env"
+                                shift; SRC_FILE=${1};;
+                        identity)
+                                FUNCTION_CALL="update-identity"
+                                shift; SRC_FILE=${1};;
+                        trust)
+                                FUNCTION_CALL="update-trust"
+                                shift; SRC_FILE=${1};;
+
+                # Expert Actions
+                cli)
+            ((A++)); FUNCTION_CALL="cli"
+                        shift; COMMAND="${1}";;
+
+                monitor)
+            ((A++)); FUNCTION_CALL="monitor"
+            shift; CHOICE_FILE=${1};;
+
+                # The help command
+                help)
+                        HELP=1;;
+
+                # Optional arguments
+                force)
+                        FORCE=1;;
+                clean)
+                        CLEAN=1;;
+                fresh)
+                        FRESH=1;;
+                flush)
+                        FLUSH=1;;
+                admin)
+                        ADMIN=1;;
+
+                # Pull the next argument to set the value
+                count)
+                        shift; COUNT=${1};;
+                interval)
+                        shift; INTERVAL=${1};;
+
+                # Ths is just for fun
+                try)
+                        cat ${SCRIPTHOME}/functions/.try; exit 0;;
+        esac
+
+        # shift the argument just processed
+        shift
+done
+#### ===================================================================== ####
+##     Evaluate arguments passed to the script                               ##
+#### ===================================================================== ####
+# Only a single action command can be issued
+if [[ ${A} > 1 ]]
+then
+        log "Allowed a single action only you are."
+        finished "1"
+fi
+# Need to specify at least one
+if [[ -z ${A} ]]
+then
+        if [[ ${HELP} == 1 ]]
+        then
+                printUsage
+                exit 0
+        else
+                log "Your commands, nothing to do they say."
+                printUsage
+                finished "1"
+        fi
+fi
+# preemptive activate call
+if [[ ${FUNCTION_CALL} != "activate" ]]
+then
+        if [[ ! -f ${SCRIPTHOME}/.activated ]]
+        then
+                source ${SCRIPTHOME}/functions/admin.activate.sh
+                log "This instance has not been activated."
+                log "Attempting activation"
+                activate
+                STATUS=$?
+                if [[ ${STATUS} != 0 ]]
+                then
+                        finished ${STATUS}
+                fi
+                # post-actvation requires recreating some key variables
+                source ${SCRIPTHOME}/functions/admin.basics.sh
+        fi
+fi
+
+#### ===================================================================== ####
+##     Kick off the appropriate action                                       ##
+#### ===================================================================== ####
+# Source the appropriate function definition file
+source ${SCRIPTHOME}/functions/admin.${FUNCTION_FILE:-$FUNCTION_CALL}.sh
+#(i)-> www.gnu.org/software/bash/manual/bashref.html#Shell-Parameter-Expansion
+
